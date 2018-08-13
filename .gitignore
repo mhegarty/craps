@@ -102,3 +102,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# logs
+craps/logs/
+!craps/logs/__init__.py
