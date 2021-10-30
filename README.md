@@ -129,7 +129,7 @@ Install with pip (recommended)
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-  <a href="https://github.com/mhegarty/craps">
+  <a href="https://github.com/mhegarty/craps/blob/master/images/example.png">
     <img src="images/example.png" alt="Notebook">
   </a>
 
