@@ -27,7 +27,8 @@
 
 
 <!-- PROJECT LOGO -->
-<h3 align="center">the repo</h3>
+<h3 align="center">craps</h3>
+
 <br />
 
 <div align="center">
@@ -35,9 +36,8 @@
     <img src="https://raw.githubusercontent.com/mhegarty/craps/master/images/logo.png"
     alt="Logo" width="80" height="80">
   </a>
-
-<h3 align="center">craps</h3>
-
+<br />
+<br />
   <p align="center">
     A lightweight table game simulator built with python standard libraries.
     <!-- <br />
