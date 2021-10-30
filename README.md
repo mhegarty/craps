@@ -29,8 +29,9 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/mhegarty/craps">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
+  <a href="https://raw.githubusercontent.com/mhegarty/craps/master/images/logo.png"
+    <img src="https://raw.githubusercontent.com/mhegarty/craps/master/images/logo.png" 
+    alt="Logo" width="80" height="80">
   </a>
 
 <h3 align="center">craps</h3>
@@ -130,7 +131,8 @@ Install with pip (recommended)
 ## Usage
 
   <a href="https://github.com/mhegarty/craps/blob/master/images/example.png">
-    <img src="images/example.png" alt="Notebook">
+    <img src="https://raw.githubusercontent.com/mhegarty/craps/master/images/example.png"
+     alt="Notebook">
   </a>
 
 <!-- _For more examples, please refer to the [Documentation](https://example.com)_-->
