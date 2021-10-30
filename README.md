@@ -27,7 +27,7 @@
 
 
 <!-- PROJECT LOGO -->
-<h3 align="center"></h3>
+<h3 align="center">the repo</h3>
 <br />
 
 <div align="center">
