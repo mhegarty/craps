@@ -27,7 +27,9 @@
 
 
 <!-- PROJECT LOGO -->
+<h3 align="center"></h3>
 <br />
+
 <div align="center">
   <a href="https://github.com/mhegarty/craps/blob/master/images/logo.png">
     <img src="https://raw.githubusercontent.com/mhegarty/craps/master/images/logo.png"
