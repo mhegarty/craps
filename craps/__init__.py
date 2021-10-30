@@ -6,20 +6,9 @@ Mike Hegarty (Github: mhegarty)
 Jul 2018
 """
 
-from config import DB_URL
+# Import Models
+from .models import *
 
-#from flask import Flask
-#
-#def create_app():
-#    app = Flask(__name__)
-#
-#    # Import Blueprints
-#    from main import main as main_blueprint
-#    app.register_blueprint(main_blueprint)
-#
-#    return app
-#
-#
-#if __name__ == "__main__":
-#    app = create_app()
-#    app.run()
+# Purge logs
+from .utils import purge_logs
+purge_logs()

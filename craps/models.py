@@ -1,337 +1,255 @@
 # -*- coding: utf-8 -*-
-"""
-Mike Hegarty (Github: mhegarty)
-Jul 2018
-"""
+# Mike Hegarty (Github: mhegarty)
 
-from sqlalchemy import func, Column, String, Integer, Boolean, Text, ForeignKey
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship, validates
-from craps.database import Base, db_session
-from craps.logs import game_logger, no_logger
-import pandas as pd
-import warnings
+from uuid import uuid4
+from random import randint
+from .utils import create_logger
 
 
-class Game(Base):
-    """
-    :CLASS craps.models.Game
-    """
-    
-    __tablename__ = 'games'
-    
-    _id           = Column(Integer, primary_key=True, autoincrement=True)
-    simulation_id = Column(Integer, ForeignKey('simulations.id', onupdate="CASCADE", ondelete="CASCADE"))
-    arrival_cash  = Column(Integer, default=200)
-    minimum_bet   = Column(Integer, default=10)
-    puck          = Column(Integer, default=None)
-    description   = Column(Text,    default=None)
-    
-    rolls      = relationship("Roll", cascade="all, delete-orphan")
-    bets       = relationship("Bet", cascade="all, delete-orphan")
-    simulation = relationship("Simulation", cascade="save-update")
-    
-    log = no_logger()
-    
-    
-    def __init__(self):
+class Game():
+    """A Single Game Session
+
+    simulation_id (int) : The simulation
+    arrival_cash (int)  : How much money to start with
+    minimum_bet (int)   : The table minimum. Most places are $10
+    puck (int)          : Location of the puck or None if off
+
+    rolls (list) : List of the Roll objects in this game
+    bets (list)  : List of Bet objects in this game
+
+    A Game consists of a series of bets and rolls and follows this sequence:
+
+    1) Instantiate a game with a defined amount of arrival cash, table minimum, and max odds.
+
+    2) Bet. Each bet is validated when it instantiated 
+            eg. no place bets when puck is on
+                set the point for odds bets
+                set the game id
+
+    3) Roll. Role the dice and get a result.
+
+    4) Evaluate. Check each bet and update payout, working, and settled attributes."""
+    def __init__(self, **kwargs):
+        self._id     = None
+        self.logger  = create_logger(self.id)
+        self.history = []
         
-        self.allow_debit_rail = False
+        self.allow_credit_rail = False  # Allow borrowing?
         
-        db_session.add(self)
-        db_session.commit()
+        self.arrival_cash  = 1000.
+        self.minimum_bet   = 10.  # The table minimum bet (typically $10)
+        self.max_odds      = 10.  # The table limit on odds bets (typically 10x come or pass)
+        
+        self.puck  = None
+        self.rolls = []
+        self.bets  = []
+
+        self.logger.info(f'[Table] Welcome to the table shooter!')
 
     
-    def log_game(self):                   # Turn on game logging
-        self.log = game_logger(self)   # see craps.logs.game_logger()
-        
-    
-    @hybrid_property
+    @property
     def id(self):
-        if not self._id:            # id property getter commits the game
-            db_session.add(self)    # to the db in order to get the auto incremented
-            db_session.commit()     # game id
+        if not self._id:  # id property getter commits the game
+            self._id = str(uuid4())
+            # response = tbl.put_item( Item={
+            #             'game': self._id,
+            #             'user': get_current_user()} )
         return self._id
-    
-    
-    @validates("bets")
-    def validate_bets(self, key, bet):   # bets validator runs on append events
-        
-        # Make sure there is enough money on the rail
-        if (not self.allow_debit_rail) and (bet.amount > self.rail_balance):
-             warnings.warn('You are bankrupt. Bet amount set to zero')
-             bet.amount = 0
-        
-        if (not self.puck) & (type(bet) is ComeBet):      # Catch illogical comebest
-            warnings.warn('You are placing a comebet with the puck off. Moving to the line.')
-            bet = PassBet(bet.amount)
-        
-        # Reject point odds bets without a come on point
-        if (type(bet) is PointOddsBet):
-            working_come_points = [bet.point for bet in self.unsettled_bets if (type(bet) is ComeBet)]
-            if bet.point not in working_come_points:
-                warnings.warn('You tried to place an odds bet with no come. Bet amount set to zero')
-                bet.amount = 0
-        
-        # Set the Point for Pass, Lineodds
-        if (self.puck) and (type(bet) in [PassBet, LineOddsBet]):   # set the point for
-            bet.point = self.puck                                   # pass, lineodds
-        
-        # Set the game_id
-        if not bet.game_id:              # associates the bet with the game id
-            bet.game_id = self.id        # so don't have to commit as often
-            
-        return bet
-    
-    
-    @validates("rolls")
-    def validate_rolls(self, key, roll):
-        if not roll.game_id:              # rolls validator runs on append events
-            roll.game_id = self.id        # associates the roll with the game
-        return roll
-        
           
+    def callout(self):
+        for bet in self.unsettled_bets:
+            self.logger.info(f'[Table] {bet.call_out()}')
+
     def roll(self, override=None):
-        """
-        :METHOD 
-            craps.models.Game.roll(override=None)
-        
-        :INPUTS
-            override = None or craps.models.Roll class
-        """
-         
-        # Log the working bets
-        self.log.info('[Table] ' + 'The shooter is ready...')
-        self.log.info('[Table] ' +  'The point is {}'.format(self.puck or 'off'))
-        for bet in self.working_bets:
-            self.log.info('[Working] ' + bet.call_out())
-        
+        """Rolls th dice"""
+        # Log 
+        self.logger.info(f"[Table] The shooter is ready, the point is {self.puck or 'off'}")
+        self.callout()
+
         # Add a role      
-        roll = override or Roll()                # @validates("rolls") associates  
-        self.rolls.append(roll)                  # the roll with this game
-        db_session.commit()                      # Commit to database
+        roll = override or Roll(self)
+        self.rolls.append(roll)
         
         # Call it out 
-        self.log.info('[Roll] ' + (roll.call_out() or 'No action on {}'.format(roll.result)))
+        self.logger.info(f"[Roll] {roll.call_out() or 'No Action'}")
         
         # Evaluate bets
         self.evaluate_bets()
-        db_session.commit() 
         
         # Count up the rail
-        self.log.info('[Rail] ' + "You have {} on the rail".format(self.rail_balance))
+        self.logger.info(f"[Rail] You have {self.rail_balance} on the rail")
         
         # Set the puck
         if (not self.puck) and (roll.result in [4,5,6,8,9,10]):            
-            self.puck = roll.result            # Turn the puck on
+            self.puck = roll.result  # Turn the puck on
                     
         elif (not self.puck) and (roll.result in [2,3,7,11,12]):
-            self.puck = None                   # Craps or PassLine Winner. Keep the puck off
+            self.puck = None  # Craps or PassLine Winner. Keep the puck off
         
         elif (self.puck) and (roll.result == 7):
-            self.puck = None                   # 7 out. Take the puck off
+            self.puck = None  # 7 out. Take the puck off
         
         elif (self.puck) and (roll.result == self.puck):
-            self.puck = None                   # Winner. Take the puck off
-                  
-        # Commit the game after each roll
-        db_session.commit()
-            
+            self.puck = None  # Winner. Take the puck off
+        
+        # Update history
+        self.history += [{'roll_result': self.last_roll.result,
+                          'net_worth': self.net_worth}]
     
-    def bet(self, bet):
-        """
-        :METHOD 
-            craps.models.Game.bet(bet)
-        
-        :INPUTS
-            bet = craps.models.bet class
-        
-        :EXAMPLE
-            Game.bet(PassBet(10))
-        """
-        
-        # Append the bet   
-        self.bets.append(bet)  # Validator will assign game_id and point
 
-        # Commit the bet
-        db_session.commit()
+    def _bet(self, bet):
+        """Add a bet"""
         
+        # Validate the bet
+        # Make sure there is enough money on the rail
+        if (not self.allow_credit_rail) and (bet.amount > self.rail_balance):
+             raise AssertionError('You are bankrupt. Bet rejected')
+        
+        # Catch illogical come bet, move it to the pass line
+        if (not self.puck) & (type(bet) is ComeBet):
+            raise AssertionError('You are placing a come bet with the puck off. Moving to the line.')
+        
+        # Reject point odds bets without a come on point
+        if type(bet) is PointOddsBet:
+            working_come_points = [bet.point for bet in self.unsettled_bets if (type(bet) is ComeBet)]
+            if bet.point not in working_come_points:
+                raise AssertionError('You tried to place an odds bet with no come. Bet amount set to zero')
+
+        # Bet has been validated
+        # Assign the bet to this game
+        bet.game = self
+
+        # Set the Point for Pass, Lineodds
+        if (self.puck) and (type(bet) in [PassBet, LineOddsBet]):   # set the point for
+            bet.point = self.puck                                   # pass, lineodds
+
+        # Append the bet
+        self.bets.append(bet)
+
         # Logs
-        self.log.info('[Bet] ' + 'You made a {} on {} for {}'.format(bet.type, bet.point or 'the box', bet.amount))
-        self.log.info('[Rail] ' + "You have {} on the rail".format(self.rail_balance))
-      
-     
-    def evaluate_bets(self):                # evaluate working bets
+        self.logger.info(f"[Bet] You made a {bet.type} on {bet.point or'the box'} for {bet.amount}")
+        self.logger.info(f"[Rail] You have {self.rail_balance} on the rail")        
+
+    def bet(self, bet):
+        """Add a bet"""
+        try:
+            self._bet(bet)
+        except AssertionError as e:
+            self.logger.info(f"[Bet] {e}")
+
+    def evaluate_bets(self):  # evaluate working bets
         for bet in self.working_bets:
-            bet.evaluate()
+            bet.evaluate(self.last_roll)
     
     
-    @hybrid_property
-    def last_roll(self):                    # get the last roll 
-        return self.rolls[-1]               # note to self... go back and make sure ordering is handled correctly
+    @property
+    def last_roll(self):      # get the last roll 
+        return self.rolls[-1] # note to self... go back and make sure ordering is handled correctly
     
-    @hybrid_property
-    def working_bets(self):                 # get collection of working bets
-        return db_session.query(Bet). \
-                filter(Bet.game == self). \
-                filter(Bet.working).all()
+    @property
+    def working_bets(self):   # get collection of working bets
+        return [bet for bet in self.bets if bet.working]
 
-    @hybrid_property
-    def unsettled_bets(self):                 # get collection of unsettled
-        return db_session.query(Bet). \
-                filter(Bet.game == self). \
-                filter(Bet.settled == None).all()
-                
-    @hybrid_property
-    def payouts(self):
-        return db_session.query(func.sum(Bet.payout)). \
-                filter(Bet.game == self).scalar() or 0
-    
-    @hybrid_property
-    def total_amounts_bet(self):            # how much have I spent on bets this game?
-        return db_session.query(func.sum(Bet.amount)). \
-                filter(Bet.game == self).scalar() or 0
-    
-    @hybrid_property
-    def total_amounts_working(self):        # how much do i have on the table?
-        return db_session.query(func.sum(Bet.amount)). \
-                filter(Bet.game == self). \
-                filter(Bet.working == True).scalar() or 0
+    @property
+    def idle_bets(self):   # get collection of working bets
+        return [bet for bet in self.bets if (not bet.working) & (not bet.settled)]
 
-    @hybrid_property
-    def bankroll(self):            # My realized gain or loss
-        return self.payouts - self.total_amounts_bet
-    
-    @hybrid_property
-    def rail_balance(self):        # My realized gain or loss
-        return self.arrival_cash + self.bankroll
+    @property
+    def unsettled_bets(self):   # get collection of working bets
+        return [bet for bet in self.bets if not bet.settled]
 
+    @property
+    def total_amounts_working(self): # how much do i have working on the table?
+        return sum([bet.amount for bet in self.working_bets])
+
+    @property
+    def total_amounts_idle(self): # how much do i have not working and not settled on the table?
+        return sum([bet.amount for bet in self.idle_bets])
+
+    @property
+    def total_amounts_on_table(self): # how much do i on the table
+        return self.total_amounts_working + self.total_amounts_idle
+
+    @property
+    def pnl(self):  # Realized gain or loss
+        return sum([bet.pnl for bet in self.bets])
     
-class Roll(Base):
-   
-    __tablename__ = 'rolls'
-    
-    id      = Column(Integer, primary_key=True, autoincrement=True)
-    game_id = Column(Integer, ForeignKey('games._id', onupdate="CASCADE", ondelete="CASCADE"))
-    puck    = Column(Integer)
-    die_one = Column(Integer)
-    die_two = Column(Integer)
-    
-    game = relationship("Game")
-    
-    def __init__(self, override=(None, None)):
+    @property
+    def rail_balance(self):  # Realized gain or loss
+        return self.arrival_cash + self.pnl - self.total_amounts_on_table
+
+    @property
+    def net_worth(self):
+        return self.rail_balance + self.total_amounts_on_table
+
         
-        self.die_one   = override[0] or pd.np.random.randint(1,7)
-        self.die_two   = override[1] or pd.np.random.randint(1,7)
- 
-              
-    @hybrid_property
-    def result(self):
-        return self.die_one + self.die_two
 
-
-    def call_out(self):
-        
-        self.game.log.info('[Roll] ' + "Shooter rolled {}".format(self.result))
-        self.puck = self.game.puck
-             
-        # 7 out
-        if self.puck and self.result == 7:
-            return "7 out. Take the line. Pay the dont's and the last come"
-        
-        # call out a point setter                            
-        if (not self.puck) and (self.result in [4,5,6,8,9,10]):
-            return 'The point is {}'.format(self.result)
-        
-        # Pass line Winner
-        if (not self.puck) and (self.result in [7, 11]):
-            return "Winner, {}. Take the dont's and pay the line.".format(self.result)
- 
-        # Winner
-        if self.result == self.puck:
-            return "Winner!!, {}".format(self.result)
-        
-        # Craps Loser
-        if (not self.puck) and (self.result in [2,3,12]):
-            return "Craps. Take the line. Come again."
-        
-        # Craps Backup, pay the field
-        if (self.result in [2, 12]):
-            return "{} double the field".format(self.result)
-        
-        # Field Backup, pay the field
-        if (self.result in [3, 4, 9, 10, 11]):
-            return "{} pay the field".format(self.result)
-
-        # 6 8 backup
-        if (self.result in [6, 8]):
-            return "{} {}".format(self.result, 
-                    'the hard way' if self.die_one==self.die_two else 'came easy')
-        
-        # 5 backup
-        if (self.result == 5):
-            return "No field 5"
-
-
-class Bet(Base):
+#%% BET
+class Bet():
+    """A Bet superclass
     
-    __tablename__ = 'bets'
+    Bets have an amount and a payout. Once the
+    payout attribute is set, the bet is settled
+    and the pnl becomes payout - amount.
     
-    id      = Column(Integer, primary_key=True)
-    type    = Column(String(50))
-    game_id = Column(Integer, ForeignKey('games._id', onupdate="CASCADE", ondelete="CASCADE"))
-    amount  = Column(Integer, nullable=False)
-    point   = Column(Integer, default=None)
-    working = Column(Boolean, default=True, nullable=False)
-    payout  = Column(Integer, default=None)
-    settled = Column(Integer, default=None)
-
-    game = relationship("Game")    
-
-    __mapper_args__ = {
-        'polymorphic_identity':'bet',
-        'polymorphic_on':type}
-
+    """
     def __init__(self, amount, point=None):
         
+        self.id   = str(uuid4())
+        self.game = None
+
         self.amount = amount
         self.point  = point
-        
-        
-    @validates('payout')
-    def validate_payout(self, key, value):
-        self.settled = self.game.last_roll.id
+
+        self._payout = None
+        self.working = True
+        self.settled = False
+
+    @property
+    def type(self):
+        return str(type(self)).split('.')[-1][:-2]
+
+    @property
+    def payout(self):
+        return self._payout
+
+    @payout.setter  # Close up the bet once payout is set
+    def payout(self, value):
+        self._payout = value
         self.working = False
-        return value  
+        self.settled = True
 
     
+    @property
+    def pnl(self):
+        return self.payout - self.amount if self.settled else 0.
+
     def evaluate(self):
-        
         # Log the payout amount
         if self.payout is not None:
-            self.game.log.info('[Payout] ' + '{} {} {}'.format(self.type,
+            self.game.logger.info('[Payout] ' + '{} on {} {} {}'.format(self.type,
+                self.point or 'the box',
                 'paid out' if self.payout > 0 else 'lost', 
                 self.payout if self.payout > 0 else self.amount))
         
     
     def call_out(self):
-        return '{t} for {a} is {w} on {p}'.format(t=self.type, a=self.amount, 
-                w=('working' if self.working else 'not working'), p=self.point or 'the box')
+        return '{t} for {a} is {w} on {p}'.format(
+                    t=self.type, a=self.amount, 
+                    w=('working' if self.working else 'not working'), 
+                    p=self.point or 'the box')
 
+    def __repr__(self) -> str:
+        return f"{self.type}: amount={self.amount}, point={self.point}, payout={self.payout}, working={self.working}"
 
 class PassBet(Bet):
-    
-    __mapper_args__ = {
-        'polymorphic_identity':'passbet'}
-    
+    """A Pass bet is"""
     def __init__(self, *args, **kwargs):
         super(PassBet, self).__init__(*args, **kwargs)
 
  
-    def evaluate(self):
+    def evaluate(self, roll):
         
-        roll       = self.game.last_roll  
-               
         # Payouts
         if (not self.point) and (roll.result in [7, 11]):
             self.payout = self.amount * 2            # Winner, Pay the line
@@ -354,16 +272,11 @@ class PassBet(Bet):
 
 
 class ComeBet(Bet):  # a Come Bet is just a line bet whilst the puck is on
-    
-    __mapper_args__ = {
-    'polymorphic_identity':'comebet'}
-    
+    """A Come bet is"""
     def __init__(self, *args, **kwargs):
         super(ComeBet, self).__init__(*args, **kwargs)
 
-    def evaluate(self):
-        
-        roll = self.game.last_roll
+    def evaluate(self, roll):
                           
         # Payouts
         if (not self.point) and (roll.result in [7, 11]):
@@ -381,7 +294,7 @@ class ComeBet(Bet):  # a Come Bet is just a line bet whilst the puck is on
         # Set the point
         if (not self.point) and (roll.result in [4,5,6,8,9,10]):
             self.point = roll.result
-            self.game.log.info('[Bet] '+ "{t} for {a} was moved to the {r}".format(
+            self.game.logger.info('[Bet] '+ "{t} for {a} was moved to the {r}".format(
                     t=self.type, a=self.amount, r=roll.result))
             
 
@@ -390,19 +303,17 @@ class ComeBet(Bet):  # a Come Bet is just a line bet whilst the puck is on
     
 
 class LineOddsBet(Bet):
-    
-    __mapper_args__ = {
-        'polymorphic_identity':'lineoddsbet'}
-    
-    def evaluate(self):
+    """Line Odds are"""
+    def __init__(self, amount, point=None):
+        super().__init__(amount, point=point)
+
+    def evaluate(self, roll):
         
         # Validate working
         self.point   = self.game.puck          # Point is always the game puck
         self.working = self.point is not None  # If point is set it it working
         if not self.working:                   # Dont go to payouts if not working
             return
-        
-        roll       = self.game.last_roll
                
         # Payouts
         if (roll.result == self.point):      # Winner!
@@ -417,21 +328,15 @@ class LineOddsBet(Bet):
 
 
 class PointOddsBet(LineOddsBet):  
-
-    __mapper_args__ = {
-    'polymorphic_identity':'pointoddsbet'}
-    
-    
+    """Point Odds are"""
     def __init__(self, amount, point):
         super(PointOddsBet, self).__init__(amount, point)
     
     
-    def evaluate(self):
+    def evaluate(self, roll):
         
         # Validate working
         self.working = self.game.puck is not None  # If point is set it is working
-        
-        roll       = self.game.last_roll
                
         # Payouts
         if (self.working) and (roll.result == self.point):  # Winner!
@@ -444,57 +349,61 @@ class PointOddsBet(LineOddsBet):
         elif (not self.working) and (roll.result == 7):     # 7 on a comeout roll, push
             self.payout = self.amount              
         
-        # Log the result
+        # # Log the result
         super(LineOddsBet, self).evaluate()
 
+#%% ROLL
+class Roll():
+    """Roll class is a unique roll when it is instantiated."""
+    def __init__(self, game, override=(None, None)):
+        
+        self.id        = str(uuid4())
+        self.game      = game
+        self.puck      = game.puck
+        self.die_one   = override[0] or randint(1,6)
+        self.die_two   = override[1] or randint(1,6)
+        self.result    = self.die_one + self.die_two
 
-class Simulation(Base):
-    
-    __tablename__ = 'simulations'
-    
-    id              = Column(Integer, primary_key=True, autoincrement=True)
-    num_of_games    = Column(Integer, default=100)
-    rolls_per_game  = Column(Integer, default=100)
-    bet_unit        = Column(Integer, default=10)    
-    description     = Column(Text,    default=None)
-    
-    games = relationship("Game", cascade="all, delete-orphan")
-    
-            
-    def analyze(self):
+    def call_out(self):
+        self.game.logger.info(f"[Roll] Shooter rolled {self.result}")
+             
+        # 7 out
+        if self.puck and self.result == 7:
+            return "7 out. Take the line. Pay the dont's and the last come"
         
-        # qry rolls
-        qry = db_session.query(Roll).join(Roll.game).filter(Game.simulation==self)
-        rolls = pd.read_sql(qry.statement, qry.session.bind)
+        # call out a point setter                            
+        if (not self.puck) and (self.result in [4,5,6,8,9,10]):
+            return 'The point is {}'.format(self.result)
         
-        # qry bets
-        qry = db_session.query(Bet).join(Bet.game).filter(Game.simulation==self)
-        bets = pd.read_sql(qry.statement, qry.session.bind)
+        # Pass line Winner
+        if (not self.puck) and (self.result in [7, 11]):
+            return "Winner, {}. Take the dont's and pay the line.".format(self.result)
+ 
+        # Winner
+        if self.result == self.puck:
+            return "Winner!!, {}".format(self.result)
         
-        # Merge and Cash flow
-        df = rolls.merge(bets, how='left', left_on=['id', 'game_id'], 
-                         right_on=['settled', 'game_id']) # cost of unsettled bets are ignored due to left join
-        df['cf'] = df['payout'] - df['amount']
+        # Craps Loser
+        if (not self.puck) and (self.result in [2,3,12]):
+            return f"{self.result} Craps. Take the line. Come again."
         
-        gb = df.groupby(['game_id'])['cf'].sum()
+        # Craps Backup, pay the field
+        if (self.result in [2, 12]):
+            return "{} double the field".format(self.result)
         
-        # Stats
-        self.avg  = gb.mean().round(2) # Average game sum of cashflow
-        self.max  = gb.max().round(2)  # max game sum of cashflow
-        self.min  = gb.min().round(2)  # Min game sum of cashflow
-        self.std  = gb.std().round(2)  # Stdev of cash flows
-        self.skew = gb.skew().round(2) # Skew
-        self.kurt = gb.kurt().round(2) # Kurtosis
+        # Field Backup, pay the field
+        if (self.result in [3, 4, 9, 10, 11]):
+            return "{} pay the field".format(self.result)
+
+        # 6 8 backup
+        if (self.result in [6, 8]):
+            return "{}+{}={} {}".format(
+                    self.die_one,
+                    self.die_two,
+                    self.result, 
+                    'the hard way' if self.die_one==self.die_two else 'came easy')
         
-        self.prob_of_bankrupt = gb[gb==-200].count() / gb.count()
-        self.prob_of_loss     = gb[gb < 0].count() / gb.count()
-        self.prob_of_win      = gb[gb >= 0].count() / gb.count()
-        
-        self.df = df
-        
-        return self
-    
-    def plot_hist(self):
-        ttl = 'avg: {}, std: {}, skew: {}, kurt: {}'.format(
-                self.avg, self.std, self.skew, self.kurt)
-        self.df.groupby(['game_id'])['cf'].sum().sort_values().plot.hist(title=ttl)
+        # 5 backup
+        if (self.result == 5):
+            return "No field 5"
+
