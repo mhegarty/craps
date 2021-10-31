@@ -32,9 +32,9 @@
 <br />
 
 <div align="center">
-  <a href="https://github.com/mhegarty/craps/blob/master/images/logo.png">
-    <img src="https://raw.githubusercontent.com/mhegarty/craps/master/images/logo.png"
-    alt="Logo" width="80" height="80">
+  <a align="center" href="https://github.com/mhegarty/craps/blob/master/logo.png">
+    <img src="https://raw.githubusercontent.com/mhegarty/craps/master/logo.png"
+    alt="Logo" width=80 height=80>
   </a>
 <br />
 <br />
@@ -132,10 +132,111 @@ Install with pip (recommended)
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-  <a href="https://github.com/mhegarty/craps/blob/master/images/example.png">
+
+```python
+!pip install craps
+from craps import Game, PassBet, LineOddsBet, ComeBet, PointOddsBet
+```
+
+    Collecting craps
+      Downloading craps-1.0.4-py3-none-any.whl (9.9 kB)
+    Installing collected packages: craps
+    Successfully installed craps-1.0.4
+
+
+
+```python
+# Start a game with $100 at a table with a $10 minimum
+g = Game(arrival_cash = 100, minimum_bet=10)
+
+# Place a bet for $10, then roll the dice!
+g.bet(PassBet(10))
+g.roll()
+```
+
+    [Bet] You made a PassBet on the box for 10
+    [Rail] You have 990.0 on the rail
+    [Table] The shooter is ready, the point is off
+    [Table] PassBet for 10 is working on the box
+    [Roll] Shooter rolled 10
+    [Roll] The point is 10
+    [Rail] You have 990.0 on the rail
+
+
+
+```python
+# Put $20 odds on line bet
+g.bet(LineOddsBet(20, g.puck))
+
+# And place an additional come bet for the table minimum
+g.bet(ComeBet(g.minimum_bet))
+```
+
+    [Bet] You made a LineOddsBet on 10 for 20
+    [Rail] You have 970.0 on the rail
+    [Bet] You made a ComeBet on the box for 10.0
+    [Rail] You have 960.0 on the rail
+
+
+
+```python
+# Roll!
+g.roll()
+```
+
+    [Table] The shooter is ready, the point is 10
+    [Table] PassBet for 10 is working on 10
+    [Table] LineOddsBet for 20 is working on 10
+    [Table] ComeBet for 10.0 is working on the box
+    [Roll] Shooter rolled 8
+    [Roll] 2+6=8 came easy
+    [Bet] ComeBet for 10.0 was moved to the 8
+    [Rail] You have 960.0 on the rail
+
+
+
+```python
+# Check your bets
+g.callout()
+```
+
+    [Table] PassBet for 10 is working on 10
+    [Table] LineOddsBet for 20 is working on 10
+    [Table] ComeBet for 10.0 is working on 8
+
+
+
+```python
+# Put $30 odds on your 8
+g.bet(PointOddsBet(30, 8))
+```
+
+    [Bet] You made a PointOddsBet on 8 for 30
+    [Rail] You have 930.0 on the rail
+
+
+
+```python
+# Roll!
+g.roll()
+```
+
+    [Table] The shooter is ready, the point is 10
+    [Table] PassBet for 10 is working on 10
+    [Table] LineOddsBet for 20 is working on 10
+    [Table] ComeBet for 10.0 is working on 8
+    [Table] PointOddsBet for 30 is working on 8
+    [Roll] Shooter rolled 10
+    [Roll] Winner!!, 10
+    [Payout] PassBet on 10 paid out 20
+    [Payout] LineOddsBet on 10 paid out 60.0
+    [Rail] You have 1010.0 on the rail
+
+
+  <!-- <a href="https://github.com/mhegarty/craps/blob/master/images/example.png">
     <img src="https://raw.githubusercontent.com/mhegarty/craps/master/images/example.png"
      alt="Notebook">
-  </a>
+  </a> -->
 
 <!-- _For more examples, please refer to the [Documentation](https://example.com)_-->
 
