@@ -36,6 +36,10 @@
     <img src="https://raw.githubusercontent.com/mhegarty/craps/master/logo.png"
     alt="Logo" width=80 height=80>
   </a>
+  <!-- <a align="center" href="https://github.com/mhegarty/craps/blob/master/logo.png">
+    <img src="https://raw.githubusercontent.com/mhegarty/craps/master/logo.png"
+    alt="Logo">
+  </a> -->
 <br />
 <br />
   <p align="center">

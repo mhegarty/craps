@@ -36,7 +36,8 @@ def purge_logs():
     if not os.path.exists(logdir):
         os.mkdir(logdir)
     for f in [f for f in os.listdir(logdir)]:
-        os.remove(f"{logdir}{f}")
+        if not f == '.keepalive':
+            os.remove(f"{logdir}{f}")
 
 class TestRoll():
     def __init__(self, override=(None, None)):
