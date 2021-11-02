@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
+from genericpath import exists
 import os
 import logging
+from appdirs import AppDirs
 from random import randint, choice
 
-basedir = os.path.abspath(os.path.dirname(__file__))
-logdir  = f"{basedir}/gamelogs/"
+
+logdir = AppDirs("craps", "gamelogs").user_log_dir
+
 
 def create_logger(game_id, level=logging.INFO):
     # Create a custom logger
@@ -14,7 +17,7 @@ def create_logger(game_id, level=logging.INFO):
     # Create handlers
     c_handler = logging.StreamHandler()
     c_handler.setLevel(level)
-    f_handler = logging.FileHandler(f"{logdir}{game_id}")
+    f_handler = logging.FileHandler(f"{logdir}/{game_id}")
     f_handler.setLevel(level)
 
     # Create formatters and add it to handlers
@@ -33,11 +36,9 @@ def purge_logs():
     
     This is to prevent clutter. If you'd like to keep your logs, save them someplace else.
     """
-    if not os.path.exists(logdir):
-        os.mkdir(logdir)
+    os.makedirs(logdir, exist_ok=True)
     for f in [f for f in os.listdir(logdir)]:
-        if not f == '.keepalive':
-            os.remove(f"{logdir}{f}")
+        os.remove(f"{logdir}/{f}")
 
 class TestRoll():
     def __init__(self, override=(None, None)):

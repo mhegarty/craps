@@ -10,7 +10,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name="craps",
-    version="1.1.0",
+    version="1.1.9",
     description="A table game engine.",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -25,10 +25,9 @@ setup(
     ],
     packages=["craps"],
     include_package_data=True,
-    install_requires=[]                     # Install other dependencies if any
-    # packages=["craps"],
+    install_requires=["appdirs"]
+
     # include_package_data=True,
-    # install_requires=["feedparser", "html2text"],
     # entry_points={
     #     "console_scripts": [
     #         "realpython=reader.__main__:main",

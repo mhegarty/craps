@@ -32,18 +32,18 @@
 <br />
 
 <div align="center">
-  <a align="center" href="https://github.com/mhegarty/craps/blob/master/logo.png">
-    <img src="https://raw.githubusercontent.com/mhegarty/craps/master/logo.png"
-    alt="Logo" width=80 height=80>
-  </a>
   <!-- <a align="center" href="https://github.com/mhegarty/craps/blob/master/logo.png">
     <img src="https://raw.githubusercontent.com/mhegarty/craps/master/logo.png"
-    alt="Logo">
+    alt="Logo" width=80 height=80>
   </a> -->
+  <a align="center" href="https://github.com/mhegarty/craps/blob/master/logo.png">
+    <img src="https://raw.githubusercontent.com/mhegarty/craps/master/logo.png"
+    alt="Logo">
+  </a>
 <br />
 <br />
   <p align="center">
-    A lightweight table game simulator built with python standard libraries.
+    A lightweight table game simulator.
     <!-- <br />
     <a href="https://github.com/mhegarty/craps"><strong>Explore the code »</strong></a>-->
     <br />
@@ -108,16 +108,16 @@ Here's a blank template to get started: To avoid retyping too much info. Do a se
 
 
 <!-- GETTING STARTED -->
-## Getting Started
+<!-- ## Getting Started
 
 The game engine is ready to roll. Let's get rolling.
+ -->
 
 
-
-## Prerequisites
+<!-- ## Prerequisites
 
 This package uses libraries that have been standard since python 2.7 and it will likely 
-run on any python version you are using. If you experience any issues, please [report a bug](https://github.com/mhegarty/craps/issues).
+run on any python version you are using. If you experience any issues, please [report a bug](https://github.com/mhegarty/craps/issues). -->
 
 
 
@@ -143,9 +143,9 @@ from craps import Game, PassBet, LineOddsBet, ComeBet, PointOddsBet
 ```
 
     Collecting craps
-      Downloading craps-1.0.4-py3-none-any.whl (9.9 kB)
+      Downloading craps-1.1.0-py3-none-any.whl (9.9 kB)
     Installing collected packages: craps
-    Successfully installed craps-1.0.4
+    Successfully installed craps-1.1.0
 
 
 

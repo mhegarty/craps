@@ -9,13 +9,28 @@ from .utils import create_logger
 class Game():
     """A Single Game Session
 
-    simulation_id (int) : The simulation
-    arrival_cash (int)  : How much money to start with
-    minimum_bet (int)   : The table minimum. Most places are $10
-    puck (int)          : Location of the puck or None if off
+    arrival_cash (int)  : How much money to start with, default 1,000.
+    minimum_bet (int)   : The table minimum, default is $10
+    puck (int)          : Location of the puck, or None if off
 
     rolls (list) : List of the Roll objects in this game
     bets (list)  : List of Bet objects in this game
+
+    last_roll (Roll object) : returns the last roll of the game 
+    working_bets (list)     : returns a list of working bet objects
+    idle_bets (list)        : returns a list of bets on the table that are not working
+    unsettled_bets (list)   : returns a list of bets that have not been settled (orking + idle)
+    
+    total_amounts_working (float) : value of bets working on the table
+    total_amounts_idle (float)    : value of bets not working and on the table
+    total_amounts_on_table (float): value of all bets on the table
+
+    pnl (float)          : Realized gain or loss
+    rail_balance (float) : Amount you have on the rail
+    net_worth (float)    : Total amount on the rail and on the table
+
+    history (list) : returns a list of dictionaries with the sequance of each roll result and
+                     net_worth after each roll. 
 
     A Game consists of a series of bets and rolls and follows this sequence:
 
@@ -29,16 +44,18 @@ class Game():
     3) Roll. Role the dice and get a result.
 
     4) Evaluate. Check each bet and update payout, working, and settled attributes."""
-    def __init__(self, **kwargs):
+    def __init__(self, loglevel=20, arrival_cash=1000., minimum_bet=10., max_odds=10.):
         self._id     = None
         self.logger  = create_logger(self.id)
+        self.logger.setLevel(loglevel)
+        self.logger.debug(f'Game is loading, id: {self.id}')
         self.history = []
         
-        self.allow_credit_rail = False  # Allow borrowing?
+        self.allow_credit_rail = False  # Allow us to go negative, never.
         
-        self.arrival_cash  = 1000.
-        self.minimum_bet   = 10.  # The table minimum bet (typically $10)
-        self.max_odds      = 10.  # The table limit on odds bets (typically 10x come or pass)
+        self.arrival_cash  = arrival_cash
+        self.minimum_bet   = minimum_bet  # The table minimum bet
+        self.max_odds      = max_odds     # The table limit on odds bets
         
         self.puck  = None
         self.rolls = []
@@ -105,15 +122,21 @@ class Game():
         if (not self.allow_credit_rail) and (bet.amount > self.rail_balance):
              raise AssertionError('You are bankrupt. Bet rejected')
         
+        # Catch illogical PassBet? Move it to odds?
+        # no, because in some case may want to increase
+        #     the amount on the pass line, if you have max
+        #     odds on already and want moar.
+
         # Catch illogical come bet, move it to the pass line
         if (not self.puck) & (type(bet) is ComeBet):
-            raise AssertionError('You are placing a come bet with the puck off. Moving to the line.')
+            bet = PassBet(bet.amount)
+            self.logger.warning('[Table] You placed a come bet with the puck off. We moved it to the pass line.')
         
         # Reject point odds bets without a come on point
         if type(bet) is PointOddsBet:
             working_come_points = [bet.point for bet in self.unsettled_bets if (type(bet) is ComeBet)]
             if bet.point not in working_come_points:
-                raise AssertionError('You tried to place an odds bet with no come. Bet amount set to zero')
+                raise AssertionError(f'You tried to put odds on {bet.point} with no comebet there. Bet was rejected.')
 
         # Bet has been validated
         # Assign the bet to this game
