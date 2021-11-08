@@ -7,11 +7,11 @@ from .utils import create_logger
 
 
 class Game():
-    """A Single Game Session
+    """A Game Session
 
-    arrival_cash (int)  : How much money to start with, default 1,000.
-    minimum_bet (int)   : The table minimum, default is $10
-    puck (int)          : Location of the puck, or None if off
+    bankroll (int) : How much money to start with, default 1,000.
+    min_bet (int)  : The table minimum, default is $10
+    puck (int)     : Location of the puck, or None if off
 
     rolls (list) : List of the Roll objects in this game
     bets (list)  : List of Bet objects in this game
@@ -34,17 +34,14 @@ class Game():
 
     A Game consists of a series of bets and rolls and follows this sequence:
 
-    1) Instantiate a game with a defined amount of arrival cash, table minimum, and max odds.
+    1) Instantiate a game with a defined bankroll to exchange for tokens, table minimum, and max odds.
 
-    2) Bet. Each bet is validated when it instantiated 
-            eg. no place bets when puck is on
-                set the point for odds bets
-                set the game id
+    2) Bet. Each bet is validated when it is instantiated.
 
     3) Roll. Role the dice and get a result.
 
     4) Evaluate. Check each bet and update payout, working, and settled attributes."""
-    def __init__(self, loglevel=20, arrival_cash=1000., minimum_bet=10., max_odds=10.):
+    def __init__(self, loglevel=20, bankroll=1000., minimum_bet=10., max_odds=10.):
         self._id     = None
         self.logger  = create_logger(self.id)
         self.logger.setLevel(loglevel)
@@ -53,7 +50,7 @@ class Game():
         
         self.allow_credit_rail = False  # Allow us to go negative, never.
         
-        self.arrival_cash  = arrival_cash
+        self.bankroll      = bankroll
         self.minimum_bet   = minimum_bet  # The table minimum bet
         self.max_odds      = max_odds     # The table limit on odds bets
         
@@ -199,7 +196,7 @@ class Game():
     
     @property
     def rail_balance(self):  # Realized gain or loss
-        return self.arrival_cash + self.pnl - self.total_amounts_on_table
+        return self.bankroll + self.pnl - self.total_amounts_on_table
 
     @property
     def net_worth(self):

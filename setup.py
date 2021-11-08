@@ -10,7 +10,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name="craps",
-    version="1.1.9",
+    version="2.0.2",
     description="A table game engine.",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -23,7 +23,8 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",
     ],
-    packages=["craps"],
+    packages=["craps",
+              "craps.algos"],
     include_package_data=True,
     install_requires=["appdirs"]
 
